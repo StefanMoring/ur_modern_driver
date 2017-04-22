@@ -109,6 +109,18 @@ struct version_message {
 	char build_date[25];
 };
 
+struct tool_data {
+	char analogInputRange2;
+	char analogInputRange3;
+	double analogInput2;
+	double analogInput3;
+	float toolVoltage48V;
+	char toolOutputVoltage;
+	float toolCurrent;
+	float toolTemperature;
+	char toolMode;
+};
+
 struct masterboard_data {
 	int digitalInputBits;
 	int digitalOutputBits;
@@ -153,7 +165,7 @@ private:
 	version_message version_msg_;
 	masterboard_data mb_data_;
 	robot_mode_data robot_mode_;
-
+	tool_data tool_data_;
 	std::recursive_mutex val_lock_; // Locks the variables while unpack parses data;
 
 	std::condition_variable* pMsg_cond_; //Signals that new vars are available
@@ -191,6 +203,16 @@ public:
 	float getEuromapVoltage();
 	float getEuromapCurrent();
 
+	char getAnalogInputRange2();
+	char getAnalogInputRange3();
+	double getAnalogInput2();
+	double getAnalogInput3();
+	float getToolVoltage48V();
+	char getToolOutputVoltage();
+	float getToolCurrent();
+	float getToolTemperature();
+	char getToolMode();
+
 	bool isRobotConnected();
 	bool isRealRobotEnabled();
 	bool isPowerOnRobot();
@@ -211,6 +233,7 @@ public:
 	void unpackRobotMessageVersion(uint8_t * buf, unsigned int offset,
 			uint32_t len);
 	void unpackRobotState(uint8_t * buf, unsigned int offset, uint32_t len);
+	void unpackRobotToolData(uint8_t * buf, unsigned int offset);
 	void unpackRobotStateMasterboard(uint8_t * buf, unsigned int offset);
 	void unpackRobotMode(uint8_t * buf, unsigned int offset);
 };

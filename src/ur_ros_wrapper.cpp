@@ -47,6 +47,7 @@
 #include "ur_msgs/IOStates.h"
 #include "ur_msgs/Digital.h"
 #include "ur_msgs/Analog.h"
+#include "ur_msgs/ToolDataMsg.h"
 #include "std_msgs/String.h"
 #include <controller_manager/controller_manager.h>
 #include <realtime_tools/realtime_publisher.h>
@@ -208,7 +209,7 @@ public:
 					&RosWrapper::speedInterface, this);
 			urscript_sub_ = nh_.subscribe("ur_driver/URScript", 1,
 					&RosWrapper::urscriptInterface, this);
-
+			
 			io_srv_ = nh_.advertiseService("ur_driver/set_io",
 					&RosWrapper::setIO, this);
 			payload_srv_ = nh_.advertiseService("ur_driver/set_payload",
@@ -653,10 +654,31 @@ private:
 				"joint_states", 1);
 		ros::Publisher wrench_pub = nh_.advertise<geometry_msgs::WrenchStamped>(
 				"wrench", 1);
+
+		ros::Publisher tool_pub = nh_.advertise<ur_msgs::ToolDataMsg>("ur_driver/tool_data", 1);
         ros::Publisher tool_vel_pub = nh_.advertise<geometry_msgs::TwistStamped>("tool_velocity", 1);
+
+		
+
+
         static tf::TransformBroadcaster br;
 		while (ros::ok()) {
 			sensor_msgs::JointState joint_msg;
+			ur_msgs::ToolDataMsg tool_msg;
+
+			tool_msg.analog_input_range2 = robot_.sec_interface_->robot_state_->getAnalogInputRange2();
+			tool_msg.analog_input_range3 = robot_.sec_interface_->robot_state_->getAnalogInputRange3();
+			tool_msg.analog_input2 		 = robot_.sec_interface_->robot_state_->getAnalogInput2();
+			tool_msg.analog_input3 		 = robot_.sec_interface_->robot_state_->getAnalogInput3();
+			tool_msg.tool_voltage_48v 	 = robot_.sec_interface_->robot_state_->getToolVoltage48V();
+			tool_msg.tool_output_voltage = robot_.sec_interface_->robot_state_->getToolOutputVoltage();
+			tool_msg.tool_current		 = robot_.sec_interface_->robot_state_->getToolCurrent();
+			tool_msg.tool_temperature 	 = robot_.sec_interface_->robot_state_->getToolTemperature();
+			tool_msg.tool_mode			 = robot_.sec_interface_->robot_state_->getToolMode();
+
+
+			tool_pub.publish(tool_msg);
+
 			joint_msg.name = robot_.getJointNames();
 			geometry_msgs::WrenchStamped wrench_msg;
             geometry_msgs::PoseStamped tool_pose_msg;

@@ -26,6 +26,38 @@ RobotState::RobotState(std::condition_variable& msg_cond) {
 	RobotState::setDisconnected();
 	robot_mode_running_ = robotStateTypeV30::ROBOT_MODE_RUNNING;
 }
+
+char RobotState::getAnalogInputRange2() {
+	return tool_data_.analogInputRange2;
+}
+char RobotState::getAnalogInputRange3() {
+	return tool_data_.analogInputRange3;
+}
+double RobotState::getAnalogInput2() {
+	return tool_data_.analogInput2;
+}
+double RobotState::getAnalogInput3() {
+	return tool_data_.analogInput3;
+}
+float RobotState::getToolVoltage48V() {
+	return tool_data_.toolVoltage48V;
+}
+char RobotState::getToolOutputVoltage() {
+	return tool_data_.toolOutputVoltage;
+}
+float RobotState::getToolCurrent() {
+	return tool_data_.toolCurrent;
+}
+float RobotState::getToolTemperature() {
+	return tool_data_.toolTemperature;
+}
+char RobotState::getToolMode() {
+	return tool_data_.toolMode;
+}
+
+
+
+
 double RobotState::ntohd(uint64_t nf) {
 	double x;
 	nf = be64toh(nf);
@@ -43,6 +75,7 @@ void RobotState::unpack(uint8_t* buf, unsigned int buf_length) {
 		if (len + offset > buf_length) {
 			return;
 		}
+
 		memcpy(&message_type, &buf[offset + sizeof(len)], sizeof(message_type));
 		switch (message_type) {
 		case messageType::ROBOT_MESSAGE:
@@ -98,6 +131,7 @@ void RobotState::unpackRobotState(uint8_t * buf, unsigned int offset,
 		length = ntohl(length);
 		memcpy(&package_type, &buf[offset + sizeof(length)],
 				sizeof(package_type));
+
 		switch (package_type) {
 		case packageType::ROBOT_MODE_DATA:
 			val_lock_.lock();
@@ -105,6 +139,11 @@ void RobotState::unpackRobotState(uint8_t * buf, unsigned int offset,
 			val_lock_.unlock();
 			break;
 
+		case packageType::TOOL_DATA:
+			val_lock_.lock();
+			RobotState::unpackRobotToolData(buf, offset + 5);
+			val_lock_.unlock();
+			break;
 		case packageType::MASTERBOARD_DATA:
 			val_lock_.lock();
 			RobotState::unpackRobotStateMasterboard(buf, offset + 5);
@@ -209,6 +248,71 @@ void RobotState::unpackRobotMode(uint8_t * buf, unsigned int offset) {
 	robot_mode_.speedScaling = RobotState::ntohd(temp);
 }
 
+void RobotState::unpackRobotToolData(uint8_t *buf,
+	unsigned int offset) {
+	// char AnalogInputRange2
+	memcpy(&tool_data_.analogInputRange2, &buf[offset],
+			sizeof(tool_data_.analogInputRange2));
+	offset += sizeof(tool_data_.analogInputRange2);
+
+	// char AnalogInputRange3
+	memcpy(&tool_data_.analogInputRange3, &buf[offset],
+			sizeof(tool_data_.analogInputRange3));
+	offset += sizeof(tool_data_.analogInputRange3);
+
+	uint64_t temp;
+	// double AnalogInput2
+	memcpy(&temp, &buf[offset], sizeof(temp));
+	offset += sizeof(temp);
+	tool_data_.analogInput2 = RobotState::ntohd(temp);
+	
+	// double AnalogInput3
+	memcpy(&temp, &buf[offset], sizeof(temp));
+	offset += sizeof(temp);
+	tool_data_.analogInput3 = RobotState::ntohd(temp);
+
+	uint32_t tempFloat;
+	// float ToolVoltage48V
+	memcpy(&tempFloat, &buf[offset],
+			sizeof(tool_data_.toolVoltage48V));
+	offset += sizeof(tool_data_.toolVoltage48V);
+
+	uint8_t *p = (uint8_t*) &tool_data_.toolVoltage48V;
+	*(p+0) = (tempFloat & 0xFF000000) >> 24;
+	*(p+1) = (tempFloat & 0x00FF0000) >> 16;
+	*(p+2) = (tempFloat & 0x0000FF00) >> 8;
+	*(p+3) = (tempFloat & 0x000000FF) >> 0;
+
+	// char ToolOutputVoltage
+	memcpy(&tool_data_.toolOutputVoltage, &buf[offset],
+			sizeof(tool_data_.toolOutputVoltage));
+	offset += sizeof(tool_data_.toolOutputVoltage);
+	
+	// float ToolCurrent
+	memcpy(&tempFloat, &buf[offset],
+			sizeof(tool_data_.toolCurrent));
+	offset += sizeof(tool_data_.toolCurrent);
+
+	p = (uint8_t*) &tool_data_.toolCurrent;
+	*(p+0) = (tempFloat & 0xFF000000) >> 24;
+	*(p+1) = (tempFloat & 0x00FF0000) >> 16;
+	*(p+2) = (tempFloat & 0x0000FF00) >> 8;
+	*(p+3) = (tempFloat & 0x000000FF) >> 0;
+	
+	// float ToolTemperature
+	memcpy(&tool_data_.toolTemperature, &buf[offset],
+			sizeof(tool_data_.toolTemperature));
+	offset += sizeof(tool_data_.toolTemperature);
+	tool_data_.toolTemperature = ntohl(tool_data_.toolTemperature);
+
+	// char ToolMode
+	memcpy(&tool_data_.toolMode, &buf[offset],
+			sizeof(tool_data_.toolMode));
+	offset += sizeof(tool_data_.toolMode);
+}
+
+
+
 void RobotState::unpackRobotStateMasterboard(uint8_t * buf,
 		unsigned int offset) {
 	if (RobotState::getVersion() < 3.0) {
@@ -271,7 +375,6 @@ void RobotState::unpackRobotStateMasterboard(uint8_t * buf,
 			sizeof(mb_data_.masterIOCurrent));
 	offset += sizeof(mb_data_.masterIOCurrent);
 	mb_data_.masterIOCurrent = ntohl(mb_data_.masterIOCurrent);
-
 	memcpy(&mb_data_.safetyMode, &buf[offset], sizeof(mb_data_.safetyMode));
 	offset += sizeof(mb_data_.safetyMode);
 	memcpy(&mb_data_.masterOnOffState, &buf[offset],
